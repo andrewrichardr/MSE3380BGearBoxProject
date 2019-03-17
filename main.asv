@@ -1,8 +1,7 @@
-
-
-%% Inputs
 clear
 clc
+
+%% Inputs
 
 %All in standard SI units
 OperatingVoltage = 40           %V
@@ -14,16 +13,16 @@ reqOutputTorque = 55            %N.m
 Efficiency = 90/100             
 Duty = 2000                     %Hours
 
+
 %Gears
 PressureAngle1 = 20*pi/180      %Rad
 PressureAngle2 = 20*pi/180      %Rad
-DiametralPitch = 1
+DiametralPitch = [8, 10, 12, 16, 20, 24, 32, 48]
 k = 1                           %Teeth Depth (1 = full)
-m1 = 6                          %Gear Ratio Stage 1
-m2 = 6                          %Gear Ratio Stage 2
+m1 = 5                          %Gear Ratio Stage 1
+m2 = 4                          %Gear Ratio Stage 2
 
-
-%% Motor
+%% Motor Torque-Speed
 %point 1:
 NoLoadSpeed = VoltageConstant*OperatingVoltage;
 NoLoadTorque = 0;
@@ -35,57 +34,39 @@ StallSpeed = 0;
 points = [StallSpeed, StallTorque;
           NoLoadSpeed, NoLoadTorque];
 polynomialDegree = length(points)-1;
-p = polyfit(points(:,1),points(:,2),polynomialDegree);
+MotorLine = polyfit(points(:,1),points(:,2),polynomialDegree);
 
 f1 = figure('Renderer', 'painters', 'Position', [10 10 1200 300])
 subplot(1,3,1)
-plot([StallSpeed:NoLoadSpeed], polyval(p,[StallSpeed:NoLoadSpeed]))
+plot([StallSpeed:NoLoadSpeed], polyval(MotorLine,[StallSpeed:NoLoadSpeed]))
 hold on
+MotorLineE = Efficiency.*MotorLine
+plot([StallSpeed:NoLoadSpeed], polyval(MotorLineE,[StallSpeed:NoLoadSpeed]))
 title("Motor Torque-Speed")
-xlabel("Speed (rpm)")
-ylabel("Torque (N.m)")
-hold off
-
-%% Motor Power
-power = [0]
-for x = [StallSpeed:NoLoadSpeed]
-    power = [power, polyval(p,x)*x*pi/30];
-end
-power = power(2:end);
-outputPower = power.*Efficiency;
-subplot(1,3,2)
-plot(power)
-hold on
-plot(outputPower)
-title("Power")
 xlabel("Motor Speed (rpm)")
-ylabel("Power (Watts)")
-legend("Motor Output","System Output")
-xlim([StallSpeed, NoLoadSpeed])
+ylabel("Motor Torque (N.m)")
+legend("Theoretical Torque", "Real Torque")
 hold off
-[peakPwr,peakPwrSpeed] = findpeaks(power)
 
+%% Gear Ratio Target (minimization)
+syms r
+eqn = MotorLineE(1)*reqOutputSpeed*r^2 + MotorLineE(2)*r == reqOutputTorque;
+soln = double(solve(eqn,r))
 
-%% Ratios
+ratioTarget = soln(1)
 
-ratio = ceil(peakPwrSpeed/reqOutputSpeed);
+TargetLine = [MotorLineE(1)*ratioTarget^2, MotorLineE(2)*ratioTarget]
 
-outputTorque = [0]
-outputSpeed = [0]
-
-for x = [StallSpeed:NoLoadSpeed]
-   outputSpeed = [outputSpeed, x/ratio];
-   outputTorque = [outputTorque, outputPower(x+1)*ratio*30/(pi*x)];
-end
-subplot(1,3,3)
-plot(outputSpeed, outputTorque)
+subplot(1,3,2)
+plot([StallSpeed/ratioTarget: NoLoadSpeed/ratioTarget], polyval(TargetLine,[StallSpeed/ratioTarget: NoLoadSpeed/ratioTarget]))
 hold on
-plot(575,55,'*')
-title("Drill Torque-Speed")
+plot(reqOutputSpeed, reqOutputTorque,'*')
+title(["Drill Torque-Speed (Target), m = ", ratioTarget])
 xlabel("Drill Speed (rpm)")
 ylabel("Drill Torque (N.m)")
 legend("Drill Output", "Given Requirement")
 hold off
+
 
 %% Gears
 
@@ -97,23 +78,145 @@ N1l = floor(((P1^2)*(sin(PressureAngle1)^2)-4*k^2)/(4*k-2*P1*sin(PressureAngle1)
 N2l = floor(((P1^2)*(sin(PressureAngle2)^2)-4*k^2)/(4*k-2*P2*sin(PressureAngle2)^2));
 
 if(m1*P1 > N1l)
-    N1 = N1l    %Gear Ratio m is too large
+    N1 = N1l;   %Gear Ratio m is too large
+    disp("Ratio m1 Too Large")
 else
-    N1 = floor(m1*P1)
+    N1 = floor(m1*P1);
 end
 
-if(m2*P2 > N2l)
-    N2 = N2l    %Gear Ratio m is too large
+if(m2*P2 > N2l);
+    N2 = N2l;    %Gear Ratio m is too large
+    disp("Ratio m2 Too Large")
 else
-    N2 = floor(m2*P2)
+    N2 = floor(m2*P2);
 end
 
-m1a = N1/P1
-m2a = N2/P2
-m = m1a*m2a
+m1actual = N1/P1;
+m2actual = N2/P2;
+ratio = m1actual*m2actual;
 
-table(m1, m1a, P1, N1, m2, m2a, P2, N2, m)
+RatioTable = table(m1, m1actual, P1, N1, m2, m2actual, P2, N2, ratio, ratioTarget)
+
+
+%% Gear Ratio (Overall)
+
+outputTorque = [0];
+outputSpeed = [0];
+
+RealLine = [MotorLineE(1)*ratio^2, MotorLineE(2)*ratio]
+
+for x = [StallSpeed:NoLoadSpeed]
+   outputSpeed = [outputSpeed, x/ratio];
+   outputTorque = [outputTorque, polyval(RealLine,x/ratio)];
+end
+outputSpeed = outputSpeed(2:end);
+outputTorque = outputTorque(2:end);
+subplot(1,3,3)
+plot(outputSpeed, outputTorque)
+hold on
+plot(reqOutputSpeed,reqOutputTorque,'*')
+title(["Drill Torque-Speed (Actual) m = ", ratio])
+xlabel("Drill Speed (rpm)")
+ylabel("Drill Torque (N.m)")
+legend("Drill Output", "Given Requirement")
+hold off
+
+%% Shaft Torque and Speed Estimation
+%{
+Motor - P1  : Shaft A
+N1 - P2     : Shaft B
+N2 - Chuck  : Shaft C
+%}
+
+%Shaft C
+CmaxTorque = outputTorque(1);
+CopTorque = reqOutputTorque;
+CmaxSpeed = outputSpeed(length(outputSpeed));
+CopSpeed = reqOutputSpeed;
+%Shaft B
+BmaxTorque = CmaxTorque/m2;
+BopTorque = CopTorque/m2;
+BmaxSpeed = CmaxSpeed/m2;
+BopSpeed = CopSpeed/m2;
+%Shaft A
+AmaxTorque = BmaxTorque/m1;
+AopTorque = BopTorque/m1;
+AmaxSpeed = BmaxSpeed/m1;
+AopSpeed = BopSpeed/m1;
+
+ShaftTorqueEstimation = table(AopTorque, AmaxTorque, BopTorque, BmaxTorque, CopTorque, CmaxTorque)
+ShaftSpeedEstimation = table(AopSpeed, AmaxSpeed, BopSpeed, BmaxSpeed, CopSpeed, CmaxSpeed)
+
+%% Gear Forces and Diameter
+
+nomForce1 = [0];
+nomForce2 = [0];
+maxForce1 = [0];
+maxForce2 = [0];
+P1diameter = [0];
+N1diameter = [0];
+P2diameter = [0];
+N2diameter = [0];
+
+
+for x = DiametralPitch
+DiametralPitch1 = x;
+DiametralPitch2 = x;  
+
+P1dia = P1/DiametralPitch1;
+N1dia= N1/DiametralPitch1;
+P2dia= P2/DiametralPitch2;
+N2dia= N2/DiametralPitch2;
 
 
 
+%Nominal Torques
+nomForce1 = [nomForce1, AopTorque/(P1dia/2)];
+nomForce2 = [nomForce2, BopTorque/(P2dia/2)];
+%Maximum Torques
+maxForce1 = [maxForce1, AmaxTorque/(P1dia/2)];
+maxForce2 = [maxForce2, BmaxTorque/(P2dia/2)];
+
+end
+
+nomForce1 = nomForce1(2:end);
+nomForce2 = nomForce2(2:end);
+maxForce1 = maxForce1(2:end);
+maxForce2 = maxForce2(2:end);
+
+f2 = figure('Renderer', 'painters', 'Position', [10 10 900 400])
+subplot(1,2,1)
+bar([1:length(DiametralPitch)], maxForce1)
+hold on
+bar([1:length(DiametralPitch)], nomForce1)
+title("Contact Forces 1")
+legend("maximum","nominal")
+set(gca, 'XTick', [1:length(DiametralPitch)])
+set(gca, 'XTickLabel', {DiametralPitch})
+xlabel("Diametral Pitch")
+ylabel("Force (N)")
+hold off
+subplot(1,2,2)
+bar([1:length(DiametralPitch)], maxForce2)
+hold on
+bar([1:length(DiametralPitch)], nomForce2)
+title("Contact Forces 2")
+legend("maximum","nominal")
+set(gca, 'XTick', [1:length(DiametralPitch)])
+set(gca, 'XTickLabel', {DiametralPitch})
+xlabel("Diametral Pitch")
+ylabel("Force (N)")
+hold off
+
+DiametralPitch = transpose(DiametralPitch);
+maxForce1 = transpose(maxForce1);
+nomForce1 = transpose(nomForce1);
+maxForce2 = transpose(maxForce2);
+nomForce2 = transpose(nomForce2);
+DiametralPitch = transpose(DiametralPitch);
+DiametralPitch = transpose(DiametralPitch);
+DiametralPitch = transpose(DiametralPitch);
+DiametralPitch = transpose(DiametralPitch);
+
+ForceDiameterTable = table()
 
