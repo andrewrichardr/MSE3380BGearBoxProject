@@ -68,23 +68,27 @@ hold off
 %% Gears
 
 %pinions
-P1 = ceil((2*k*(m1+(m1^2+(1-2*m1)*(sin(PressureAngle1))^2)^0.5))/((1+2*m1)*(sin(PressureAngle1))^2));
-P2 = ceil((2*k*(m2+(m2^2+(1-2*m2)*(sin(PressureAngle2))^2)^0.5))/((1+2*m2)*(sin(PressureAngle2))^2));
+P1 = ceil((2*k*(m1+(m1^2+(1-2*m1)*(sin(PressureAngle))^2)^0.5))/((1+2*m1)*(sin(PressureAngle))^2));
+P2 = ceil((2*k*(m2+(m2^2+(1-2*m2)*(sin(PressureAngle))^2)^0.5))/((1+2*m2)*(sin(PressureAngle))^2));
 %gears
 
-N1l = floor(((P1^2)*(sin(PressureAngle1)^2)-4*k^2)/(4*k-2*P1*sin(PressureAngle1)^2));
-N2l = floor(((P1^2)*(sin(PressureAngle2)^2)-4*k^2)/(4*k-2*P2*sin(PressureAngle2)^2));
+N1l = floor(((P1^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P1*sin(PressureAngle)^2));
+N2l = floor(((P1^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P2*sin(PressureAngle)^2));
 
 if(m1*P1 > N1l)
     N1 = N1l;   %Gear Ratio m is too large
-    disp("Ratio m1 Too Large")
+    disp("Ratio m1 Too Large, increasing P1")
+    P1 = P1+1;
+    N1l = floor(((P1^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P1*sin(PressureAngle)^2));
 else
     N1 = floor(m1*P1);
 end
 
 if(m2*P2 > N2l);
     N2 = N2l;    %Gear Ratio m is too large
-    disp("Ratio m2 Too Large")
+    disp("Ratio m2 Too Large, increasing P2")
+    P2 = P2+1;
+    N2l = floor(((P1^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P2*sin(PressureAngle)^2));
 else
     N2 = floor(m2*P2);
 end
@@ -135,10 +139,10 @@ efficiency = outputPower/inputPower;
 SpeedC = reqOutputSpeed;
 TorqueC = reqOutputTorque;
 %Shaft B
-SpeedB = SpeedC*m2;
+SpeedB = SpeedC*m2actual;
 TorqueB = intermediatePower/(SpeedB*pi/30);
 %Shaft A
-SpeedA = SpeedB*m1;
+SpeedA = SpeedB*m1actual;
 TorqueA = inputPower/(SpeedA*pi/30);
 
 TorqueSpeedEstimation = table(TorqueA, SpeedA, TorqueB, SpeedB, TorqueC, SpeedC)
@@ -171,12 +175,12 @@ for x = DiametralPitch
     %Transmitted Load: Pinion 1 -> Gear 1
     Wt1 = (60000*inputPower*10^-3)/(pi*P1dia*SpeedA);
     %Radial Load: Pinion 1 -> Gear 1
-    Wr1 = tan(PressureAngle1)*Wt1;
+    Wr1 = tan(PressureAngle)*Wt1;
     
     %Transmitted Load: Pinion 2 -> Gear 2
     Wt2 = (60000*outputPower*10^-3)/(pi*N2dia*SpeedC);
     %Radial Load: Pinion 2 -> Gear 2
-    Wr2 = tan(PressureAngle1)*Wt2;
+    Wr2 = tan(PressureAngle)*Wt2;
     
     Force1t = [Force1t, Wt1];
     Force1r = [Force1r, Wr1];
@@ -299,13 +303,13 @@ BendingGear2 = [0];
 
 for x = [1:length(DiametralPitch)]
     %Pinion 1
-    [CP1, BP1] = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1);
+    [CP1, BP1] = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
     %Gear 1
-    [CN1, BN1] = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1);
+    [CN1, BN1] = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
     %Pinion 2
-    [CP2, BP2] = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2);
+    [CP2, BP2] = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
     %Gear 2
-    [CN2, BN2] = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2);
+    [CN2, BN2] = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
     
     ContactPinion1 = [ContactPinion1, CP1];
     BendingPinion1 = [BendingPinion1, BP1];
@@ -349,13 +353,13 @@ function [CS, BS] = stresses(Pd, N, n, F, Wt, m, phi)
     Ko = 1.2; %Moderate Shock
 
     %Kv - Dynamic Factor
-    Qv = 9; %Low end of precision quality gears
+    Qv = 9; %Low end of precision quality gears, Catalog: pg. 48, AGMA class: 9
     B = 0.25*(12 - Qv)^(2/3);
     A = 50 + 56*(1 - B);
     Kv = ((A + V^0.5)/A)^B;
     
     %Ks - Size Factor  
-    x = 0.05; %Tooth Width
+    x = 1.5708/Pd; %Tooth Width, equation from boston
     Y = 2*x*Pd/3;
     Ks = 1.192*((F*Y^0.5)/Pd)^0.0535;
     
@@ -371,13 +375,23 @@ function [CS, BS] = stresses(Pd, N, n, F, Wt, m, phi)
     Km = 1 + Cmc*(Cpf*Cpm + Cma*Ce);
 
     %Kb - Rim Thickness Factor
-    ht
+    Kb = 1; %Assumption given by professor
+    %{
+    if Pd < 20 %Whole Depth Equation from Boston
+        ht = 2.157/Pd;
+    else
+        ht = 2.2/Pd + 0.002; 
+    end
+    
+    tr = %Cannot find equation or values specifying rim thickness
+    
     mb = tr/ht;
     if mb < 1.2
         Kb = 1.6*log(2.242/mb);
     else
         Kb = 1;
     end
+    %}
     
     %J - Bending Strength Geometry Factor
     J = 0.275; %Figure 14-6
