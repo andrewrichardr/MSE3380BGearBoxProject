@@ -13,13 +13,16 @@ reqOutputTorque = 55                                                %N.m
 Efficiency = 90/100             
 Duty = 2000                                                         %Hours
 
-%Gears
+%Gear Specs
 PressureAngle = 20*pi/180                                           %Rad
 FaceWidth = [1.25, 1, 0.75, 0.5, 0.375, 0.25, 0.188, 0.125]         %inch
 DiametralPitch = [8, 10, 12, 16, 20, 24, 32, 48]                    %teeth/inch
 k = 1                                                               %Teeth Depth (1 = full)
-m1 = 5                                                              %Gear Ratio Stage 1
-m2 = 4                                                              %Gear Ratio Stage 2
+%Number of teeth
+P1 = 16
+N1 = 70
+P2 = 16
+N2 = 70
 
 %% Motor Torque-Speed
 %point 1:
@@ -67,21 +70,30 @@ hold off
 
 %% Gears
 
+m1actual = N1/P1;
+m2actual = N2/P2;
+ratio = m1actual*m2actual;
+
+%limits:
 %pinions
-P1 = ceil((2*k*(m1+(m1^2+(1-2*m1)*(sin(PressureAngle))^2)^0.5))/((1+2*m1)*(sin(PressureAngle))^2));
-P2 = ceil((2*k*(m2+(m2^2+(1-2*m2)*(sin(PressureAngle))^2)^0.5))/((1+2*m2)*(sin(PressureAngle))^2));
+P1l = ceil((2*k*(m1actual+(m1actual^2+(1-2*m1actual)*(sin(PressureAngle))^2)^0.5))/((1+2*m1actual)*(sin(PressureAngle))^2));
+P2l = ceil((2*k*(m2actual+(m2actual^2+(1-2*m2actual)*(sin(PressureAngle))^2)^0.5))/((1+2*m2actual)*(sin(PressureAngle))^2));
 
 %gear Limits
-N1l = floor(((P1^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P1*sin(PressureAngle)^2));
-N2l = floor(((P1^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P2*sin(PressureAngle)^2));
+N1l = floor(((P1l^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P1l*sin(PressureAngle)^2));
+N2l = floor(((P1l^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P2l*sin(PressureAngle)^2));
 
-if(m1*P1 > N1l)
+RatioTable = table(P1, P1l, N1, N1l, m1actual, P2, P2l, N2, N2l, m2actual, ratio)
+
+%old ratio determiner
+%{
+if(m1*P1l > N1l)
     N1 = N1l;   %Gear Ratio m is too large
     disp("Ratio m1 Too Large, increasing P1")
-    P1 = P1+1;
-    N1 = floor(m1*P1);
+    P1l = P1l+1;
+    N1 = floor(m1*P1l);
 else
-    N1 = floor(m1*P1);
+    N1 = floor(m1*P1l);
 end
 
 if(m2*P2 > N2l);
@@ -93,12 +105,7 @@ else
     N2 = floor(m2*P2);
 end
 
-m1actual = N1/P1;
-m2actual = N2/P2;
-ratio = m1actual*m2actual;
-
-RatioTable = table(m1, m1actual, P1, N1, m2, m2actual, P2, N2, ratio, ratioTarget)
-
+%}
 
 %% Gear Ratio (Overall)
 
