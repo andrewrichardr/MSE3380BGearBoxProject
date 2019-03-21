@@ -312,22 +312,29 @@ BendingGear2 = [0];
 
 for x = [1:length(DiametralPitch)]
     %Pinion 1
-    [CP1, BP1] = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
+    pinion1 = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
     %Gear 1
-    [CN1, BN1] = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
+    gear1 = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
     %Pinion 2
-    [CP2, BP2] = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
+    pinion2 = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
     %Gear 2
-    [CN2, BN2] = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
+    gear2 = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
     
-    ContactPinion1 = [ContactPinion1, CP1];
-    BendingPinion1 = [BendingPinion1, BP1];
-    ContactGear1 = [ContactGear1, CN1];
-    BendingGear1 = [BendingGear1, BN1];
-    ContactPinion2 = [ContactPinion2, CP2];
-    BendingPinion2 = [BendingPinion2, BP2];
-    ContactGear2 = [ContactGear2, CN2];
-    BendingGear2 = [BendingGear2, BN2];
+    ContactPinion1 = [ContactPinion1, pinion1(1)];
+    BendingPinion1 = [BendingPinion1, pinion1(2)];
+    ContactGear1 = [ContactGear1, gear1(1)];
+    BendingGear1 = [BendingGear1, gear1(2)];
+    ContactPinion2 = [ContactPinion2, pinion2(1)];
+    BendingPinion2 = [BendingPinion2, pinion2(2)];
+    ContactGear2 = [ContactGear2, gear2(1)];
+    BendingGear2 = [BendingGear2, gear2(2)];
+    
+    if DiametralPitch(x) == 20
+       PINION1 =  pinion1
+       GEAR1 =  gear1
+       PINION2 =  pinion2
+       GEAR2 =  gear2
+    end
     
 end
 
@@ -342,7 +349,12 @@ BendingGear2 = transpose(BendingGear2(2:end));
 
 StressTable = table(transpose(DiametralPitch), ContactPinion1, BendingPinion1, ContactGear1, BendingGear1, ContactPinion2, BendingPinion2, ContactGear2, BendingGear2)
 
-
+PINION1 = transpose(PINION1);
+GEAR1 = transpose(GEAR1);
+PINION2 = transpose(PINION2);
+GEAR2 = transpose(GEAR2);
+papameters = ["Contact Stress"; "Bending Stress"; "Ko"; "Kv"; "Ks"; "Km"; "Kb"; "Kt"; "Kr"; "Cf"; "J"; "I"];
+ParameterTable = table(papameters, PINION1, GEAR1, PINION2, GEAR2)
 %{
 Pd = Diametral Pitch
 N = Number of Teeth on pinion
@@ -354,7 +366,7 @@ phi = pressure angle
 ht = tooth height
 tr = rim thickness
 %}
-function [CS, BS] = stresses(Pd, N, n, F, Wt, m, phi) 
+function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi) 
     dp = N/Pd;             %Diameter inches
     V = pi*dp*n/12;        %Linear Velocity    
     
@@ -429,6 +441,8 @@ function [CS, BS] = stresses(Pd, N, n, F, Wt, m, phi)
 
     %Bending Stress
     BS = (Wt*Ko*Kv*Ks*(Pd/F)*((Km*Kb)/J))*0.00689476; %Contact stress in psi -> MPa
+    
+    OUTPUT = [CS, BS, Ko, Kv, Ks, Km, Kb, Kt, Kr, Cf, J, I]
 end
 
 
