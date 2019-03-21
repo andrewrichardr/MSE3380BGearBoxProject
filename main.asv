@@ -349,12 +349,7 @@ BendingGear2 = transpose(BendingGear2(2:end));
 
 StressTable = table(transpose(DiametralPitch), ContactPinion1, BendingPinion1, ContactGear1, BendingGear1, ContactPinion2, BendingPinion2, ContactGear2, BendingGear2)
 
-PINION1 = transpose(PINION1);
-GEAR1 = transpose(GEAR1);
-PINION2 = transpose(PINION2);
-GEAR2 = transpose(GEAR2);
-papameters = ["Contact Stress"; "Bending Stress"; "Ko"; "Kv"; "Ks"; "Km"; "Kb"; "Kt"; "Kr"; "Cf"; "J"; "I"];
-ParameterTable = table(papameters, PINION1, GEAR1, PINION2, GEAR2)
+ParameterTable = table(PINION1, GEAR1, PINION2,2)
 %{
 Pd = Diametral Pitch
 N = Number of Teeth on pinion
