@@ -4,22 +4,22 @@ clc
 %% Inputs
 
 %All in standard SI units unless noted
-OperatingVoltage = 40           %V
-TorqueConstant = 8.474E-3       %N.m/A
-VoltageConstant = 1125          %RPM/V
-ArmatureResistance = 0.072      %Ohms
-reqOutputSpeed = 575            %RPM
-reqOutputTorque = 55            %N.m
+OperatingVoltage = 40                                               %V
+TorqueConstant = 8.474E-3                                           %N.m/A
+VoltageConstant = 1125                                              %RPM/V
+ArmatureResistance = 0.072                                          %Ohms
+reqOutputSpeed = 575                                                %RPM
+reqOutputTorque = 55                                                %N.m
 Efficiency = 90/100             
-Duty = 2000                     %Hours
+Duty = 2000                                                         %Hours
 
 %Gears
-PressureAngle1 = 20*pi/180      %Rad
-PressureAngle2 = 20*pi/180      %Rad
-DiametralPitch = [8, 10, 12, 16, 20, 24, 32, 48]        %teeth/inch
-k = 1                                                   %Teeth Depth (1 = full)
-m1 = 5                                                  %Gear Ratio Stage 1
-m2 = 4                                                  %Gear Ratio Stage 2
+PressureAngle = 20*pi/180                                           %Rad
+FaceWidth = [1.25, 1, 0.75, 0.5, 0.375, 0.25, 0.188, 0.125]         %inch
+DiametralPitch = [8, 10, 12, 16, 20, 24, 32, 48]                    %teeth/inch
+k = 1                                                               %Teeth Depth (1 = full)
+m1 = 5                                                              %Gear Ratio Stage 1
+m2 = 4                                                              %Gear Ratio Stage 2
 
 %% Motor Torque-Speed
 %point 1:
@@ -34,7 +34,7 @@ points = [StallSpeed, StallTorque;
           NoLoadSpeed, NoLoadTorque];
 polynomialDegree = length(points)-1;
 MotorLine = polyfit(points(:,1),points(:,2),polynomialDegree);
-MotorLineE = Efficiency.*MotorLine
+MotorLineE = Efficiency.*MotorLine;
 
 f1 = figure('Renderer', 'painters', 'Position', [10 10 1200 300])
 subplot(1,3,1)
@@ -43,7 +43,6 @@ hold on
 title("Motor Torque-Speed")
 xlabel("Motor Speed (rpm)")
 ylabel("Motor Torque (N.m)")
-legend("Theoretical Torque", "Real Torque")
 hold off
 
 %% Gear Ratio Target (minimization)
@@ -51,9 +50,9 @@ syms r
 eqn = MotorLineE(1)*reqOutputSpeed*r^2 + MotorLineE(2)*r == reqOutputTorque;
 soln = double(solve(eqn,r))
 
-ratioTarget = soln(1)
+ratioTarget = soln(1);
 
-TargetLine = [MotorLineE(1)*ratioTarget^2, MotorLineE(2)*ratioTarget]
+TargetLine = [MotorLineE(1)*ratioTarget^2, MotorLineE(2)*ratioTarget];
 
 subplot(1,3,2)
 plot([StallSpeed/ratioTarget: NoLoadSpeed/ratioTarget], polyval(TargetLine,[StallSpeed/ratioTarget: NoLoadSpeed/ratioTarget]))
@@ -102,7 +101,7 @@ RatioTable = table(m1, m1actual, P1, N1, m2, m2actual, P2, N2, ratio, ratioTarge
 outputTorque = [0];
 outputSpeed = [0];
 
-RealLine = [MotorLineE(1)*ratio^2, MotorLineE(2)*ratio]
+RealLine = [MotorLineE(1)*ratio^2, MotorLineE(2)*ratio];
 
 for x = [StallSpeed:NoLoadSpeed]
    outputSpeed = [outputSpeed, x/ratio];
@@ -127,9 +126,9 @@ N1 - P2     : Shaft B
 N2 - Chuck  : Shaft C
 %}
 
-outputPower = reqOutputSpeed*reqOutputTorque*pi/30 
-intermediatePower = outputPower/Efficiency^0.5
-inputPower = intermediatePower/Efficiency^0.5
+outputPower = reqOutputSpeed*reqOutputTorque*pi/30 ;
+intermediatePower = outputPower/Efficiency^0.5;
+inputPower = intermediatePower/Efficiency^0.5;
 efficiency = outputPower/inputPower;
 
 %Shaft C
@@ -147,11 +146,10 @@ PowerTable = table(inputPower, intermediatePower, outputPower, efficiency)
 
 %% Operating Gear Forces, Torques and Diameters
 
-
-Force1t = [0]
-Force1r = [0]
-Force2t = [0]
-Force2r = [0]
+Force1t = [0];
+Force1r = [0];
+Force2t = [0];
+Force2r = [0];
 
 P1diameter = [0];
 N1diameter = [0];
@@ -176,13 +174,13 @@ for x = DiametralPitch
     Wr1 = tan(PressureAngle1)*Wt1;
     
     %Transmitted Load: Pinion 2 -> Gear 2
-    Wt2 = (60000*intermediatePower*10^-3)/(pi*P2dia*SpeedB);
+    Wt2 = (60000*outputPower*10^-3)/(pi*N2dia*SpeedC);
     %Radial Load: Pinion 2 -> Gear 2
     Wr2 = tan(PressureAngle1)*Wt2;
     
-    Force1t = [Force1t, Wt1]
-    Force1r = [Force1r, Wr1]
-    Force2t = [Force2t, Wt2]
+    Force1t = [Force1t, Wt1];
+    Force1r = [Force1r, Wr1];
+    Force2t = [Force2t, Wt2];
     Force2r = [Force2r, Wr2];
 end
 
@@ -196,9 +194,12 @@ N1diameter = transpose(N1diameter(2:end)).*100; %meters -> centimeters;
 P2diameter = transpose(P2diameter(2:end)).*100; %meters -> centimeters;
 N2diameter = transpose(N2diameter(2:end)).*100; %meters -> centimeters;
 
-ForceDiameterTable = table(Force1t, Force1r, P1diameter, N1diameter, Force2t, Force2r, P2diameter, N2diameter)
+ForceDiameterTable = table(transpose(DiametralPitch), Force1t, Force1r, P1diameter, N1diameter, Force2t, Force2r, P2diameter, N2diameter)
 
 %{
+
+Not confident that this is correct
+
 %Wt, Tangential Forces
 Force1t = [0];
 Force2t = [0];
@@ -284,27 +285,74 @@ DiameterTable = table(DiametralPitch, P1diameter, N1diameter, P2diameter, N2diam
 %% Stresses 
 % (Calculated in USCS then converted to metric)
 
-toothHeights = []
 
-ContactStresses = [0];
-BendingStresses = [0];
+ContactPinion1 = [0];
+BendingPinion1 = [0];
+ContactGear1 = [0];
+BendingGear1 = [0];
+ContactPinion2 = [0];
+BendingPinion2 = [0];
+ContactGear2 = [0];
+BendingGear2 = [0];
 
-    Pd = 24;
-    dp = P1/Pd;     %Pinion Diameter inches
-    n = 20000;   %Speed rpm
-    F = 0.25;       %Facewidth
-    V = pi*dp*n/12; %Linear Velocity
-    Wt = 500;           %Tangential load
+
+
+for x = [1:length(DiametralPitch)]
+    %Pinion 1
+    [CP1, BP1] = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1);
+    %Gear 1
+    [CN1, BN1] = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1);
+    %Pinion 2
+    [CP2, BP2] = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2);
+    %Gear 2
+    [CN2, BN2] = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2);
     
+    ContactPinion1 = [ContactPinion1, CP1];
+    BendingPinion1 = [BendingPinion1, BP1];
+    ContactGear1 = [ContactGear1, CN1];
+    BendingGear1 = [BendingGear1, BN1];
+    ContactPinion2 = [ContactPinion2, CP2];
+    BendingPinion2 = [BendingPinion2, BP2];
+    ContactGear2 = [ContactGear2, CN2];
+    BendingGear2 = [BendingGear2, BN2];
+    
+end
+
+ContactPinion1 = transpose(ContactPinion1(2:end));
+BendingPinion1 = transpose(BendingPinion1(2:end));
+ContactGear1 = transpose(ContactGear1(2:end));
+BendingGear1 = transpose(BendingGear1(2:end));
+ContactPinion2 = transpose(ContactPinion2(2:end));
+BendingPinion2 = transpose(BendingPinion2(2:end));
+ContactGear2 = transpose(ContactGear2(2:end));
+BendingGear2 = transpose(BendingGear2(2:end));
+
+StressTable = table(transpose(DiametralPitch), ContactPinion1, BendingPinion1, ContactGear1, BendingGear1, ContactPinion2, BendingPinion2, ContactGear2, BendingGear2)
+
+
+%{
+Pd = Diametral Pitch
+N = Number of Teeth on pinion
+n = Angular Velocity (rpm)
+F = Face Width
+Wt = Tangetntial load
+m = gear Ratio
+phi = pressure angle
+ht = tooth height
+tr = rim thickness
+%}
+function [CS, BS] = stresses(Pd, N, n, F, Wt, m, phi) 
+    dp = N/Pd;             %Diameter inches
+    V = pi*dp*n/12;        %Linear Velocity    
     
     %Ko - Overload Factor
     Ko = 1.2; %Moderate Shock
 
     %Kv - Dynamic Factor
-    Qv = 7 %High end of commercial quality gears
-    B = 0.25*(12 - Qv)^(2/3)
-    A = 50 + 56*(1 - B)
-    Kv = ((A + V^0.5)/A)^B
+    Qv = 9; %Low end of precision quality gears
+    B = 0.25*(12 - Qv)^(2/3);
+    A = 50 + 56*(1 - B);
+    Kv = ((A + V^0.5)/A)^B;
     
     %Ks - Size Factor  
     x = 0.05; %Tooth Width
@@ -315,34 +363,24 @@ BendingStresses = [0];
     Cmc = 0.8; %Crowned
     Cpf = F/(10*dp) - 0.025;
     Cpm = 1;
-    A = 0.127; %Commercial, enclosed
-    B = 0.0158;
-    C = -0.930E-4;
+    A = 0.0675; %Precision, enclosed, Table 14-9
+    B = 0.0128;
+    C = -0.926E-4;
     Cma = A + B*F + C*F^2;
     Ce = 1;
     Km = 1 + Cmc*(Cpf*Cpm + Cma*Ce);
 
     %Kb - Rim Thickness Factor
-    %{
-    tr %Rim thickness
-    ht =  %Tooth Height    
+    ht
     mb = tr/ht;
     if mb < 1.2
-        Kb = 1.6*log(2.242/mb)
+        Kb = 1.6*log(2.242/mb);
     else
-        Kb = 1
+        Kb = 1;
     end
-    %}
-    Kb = 1
     
     %J - Bending Strength Geometry Factor
-    J = 0.275 %Figure 14-6
-    
-    %St
-    St = 1;
-    
-    %Yn - Stress Cycle Factor
-    Yn = 1;
+    J = 0.275; %Figure 14-6
     
     %Kt - Temperature Factor
     Kt = 1;
@@ -351,40 +389,23 @@ BendingStresses = [0];
     Kr = 1; %0.99 - Eq. 14-38
     
     %Cp - Elastic Coefficient
-    Cp = 2300; %Table 14-8
+    Cp = 2300; %Table 14-8 steel-steel
     
     %I - Pitting Resistance Geometry Factor
-    mg = m1;
-    phi = PressureAngle1;
     mn = 1; %Load sharing ratio: 1 for spur gears
-    I = ((cos(phi)*sin(phi))/(2*mn))*(mg/(mg+1));
+    I = ((cos(phi)*sin(phi))/(2*mn))*(m/(m+1));
     
     %Cf - surface condition factor
-    Cf = 1
-    
-    %Sc - allowable Constact Stress
-    Sc = 275000 %psi  Allowable constact stress at 10^7 cycles and 99% reliability
+    Cf = 1;
     
     %Zn - Stress-Cycle Factor
-    Zn = 1
-    
-    %Ch - hardness ratio factor
-    Hbp = 627 %Brinell hardness of pinion
-    Hbg = 627 %Briness hardness of gear
-    Hb = Hbp/Hbg;
-    Ch = Hb;
-    
-    
+    Zn = 1;
+
     %Contact Stress
-    CS = Cp*(Wt*Ko*Kv*Ks*(Km/(dp*F))*(Cf/I))^0.5 %Contact stress in psi
-    %ContactStresses = [ContactStresses, CS];
+    CS = (Cp*sqrt(Wt*Ko*Kv*Ks*(Km/(dp*F))*(Cf/I)))*0.00689476; %Contact stress in psi -> MPa
 
     %Bending Stress
-    BS = Wt*Ko*Kv*Ks*(Pd/F)*((Km*Kb)/J)
-    %BendingStresses = [BendingStresses, BS];
+    BS = (Wt*Ko*Kv*Ks*(Pd/F)*((Km*Kb)/J))*0.00689476; %Contact stress in psi -> MPa
+end
 
 
-ContactStresses = ContactStresses(2:end);
-ContactStresses = transpose(ContactStresses).*0.00689476; %psi -> MPa
-BendingStresses = BendingStresses(2:end);
-BendingStresses = transpose(BendingStresses).*0.00689476; %psi -> MPa
