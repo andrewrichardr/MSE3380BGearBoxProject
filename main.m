@@ -68,12 +68,12 @@ hold off
 %% Gears
 
 %pinions
-P1 = ceil((2*k*(m1+(m1^2+(1-2*m1)*(sin(PressureAngle1))^2)^0.5))/((1+2*m1)*(sin(PressureAngle1))^2));
-P2 = ceil((2*k*(m2+(m2^2+(1-2*m2)*(sin(PressureAngle2))^2)^0.5))/((1+2*m2)*(sin(PressureAngle2))^2));
+P1 = ceil((2*k*(m1+(m1^2+(1-2*m1)*(sin(PressureAngle))^2)^0.5))/((1+2*m1)*(sin(PressureAngle))^2));
+P2 = ceil((2*k*(m2+(m2^2+(1-2*m2)*(sin(PressureAngle))^2)^0.5))/((1+2*m2)*(sin(PressureAngle))^2));
 %gears
 
-N1l = floor(((P1^2)*(sin(PressureAngle1)^2)-4*k^2)/(4*k-2*P1*sin(PressureAngle1)^2));
-N2l = floor(((P1^2)*(sin(PressureAngle2)^2)-4*k^2)/(4*k-2*P2*sin(PressureAngle2)^2));
+N1l = floor(((P1^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P1*sin(PressureAngle)^2));
+N2l = floor(((P1^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P2*sin(PressureAngle)^2));
 
 if(m1*P1 > N1l)
     N1 = N1l;   %Gear Ratio m is too large
@@ -171,12 +171,12 @@ for x = DiametralPitch
     %Transmitted Load: Pinion 1 -> Gear 1
     Wt1 = (60000*inputPower*10^-3)/(pi*P1dia*SpeedA);
     %Radial Load: Pinion 1 -> Gear 1
-    Wr1 = tan(PressureAngle1)*Wt1;
+    Wr1 = tan(PressureAngle)*Wt1;
     
     %Transmitted Load: Pinion 2 -> Gear 2
     Wt2 = (60000*outputPower*10^-3)/(pi*N2dia*SpeedC);
     %Radial Load: Pinion 2 -> Gear 2
-    Wr2 = tan(PressureAngle1)*Wt2;
+    Wr2 = tan(PressureAngle)*Wt2;
     
     Force1t = [Force1t, Wt1];
     Force1r = [Force1r, Wr1];
@@ -299,13 +299,13 @@ BendingGear2 = [0];
 
 for x = [1:length(DiametralPitch)]
     %Pinion 1
-    [CP1, BP1] = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1);
+    [CP1, BP1] = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1, PressureAngle);
     %Gear 1
-    [CN1, BN1] = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1);
+    [CN1, BN1] = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1, PressureAngle);
     %Pinion 2
-    [CP2, BP2] = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2);
+    [CP2, BP2] = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2, PressureAngle);
     %Gear 2
-    [CN2, BN2] = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2);
+    [CN2, BN2] = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2, PressureAngle);
     
     ContactPinion1 = [ContactPinion1, CP1];
     BendingPinion1 = [BendingPinion1, BP1];
@@ -377,7 +377,7 @@ function [CS, BS] = stresses(Pd, N, n, F, Wt, m, phi)
         ht = 2.2/Pd + 0.002 
     end
     
-    
+    tr = 0;
     
     mb = tr/ht;
     if mb < 1.2
