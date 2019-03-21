@@ -15,10 +15,12 @@ Duty = 2000                                                         %Hours
 
 %Gear Specs
 PressureAngle = 20*pi/180                                           %Rad
-FaceWidth = [1.25, 1, 0.75, 0.5, 0.375, 0.25, 0.188, 0.125]         %inch
+FaceWidth = [1.5, 1.25, 1, 0.75, 0.5, 0.25, 0.188, 0.125]         %inch
 DiametralPitch = [8, 10, 12, 16, 20, 24, 32, 48]                    %teeth/inch
 k = 1                                                               %Teeth Depth (1 = full)
-%Number of teeth
+%Number of teeth Chosen from iterative analysis, 
+%Chosen diametral pich of 20
+%Number of teeth variables:
 P1 = 16
 N1 = 70
 P2 = 16
