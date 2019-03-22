@@ -349,22 +349,22 @@ GEAR2 = transpose(GEAR2);
 Tselected = table(transpose(names), PINION1, GEAR1, PINION2, GEAR2)
 
 %{
-Pd = Diametral Pitch
-N = Number of Teeth on pinion
+Pd = Diametral Pitch (teeth/inch)
+N = Number of Teeth
 n = Angular Velocity (rpm)
-F = Face Width
-Wt = Tangetntial load
+F = Face Width (inches)
+WtM = Tangetntial load (Newtons)
 m = gear Ratio
-phi = pressure angle
-ht = tooth height
-tr = rim thickness
+phi = pressure angle (Rad)
 %}
-function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J) 
+function [OUTPUT] = stresses(Pd, N, n, F, WtM, m, phi) 
     dp = N/Pd;             %Diameter inches
     V = pi*dp*n/12;        %Linear Velocity    
+    Wt = 0.224809*WtM ;     % Newtons -> lbf
+    
     
     %Ko - Overload Factor
-    Ko = 1; %uniform
+    Ko = 1.25; %uniform - MODERATE SHOCK
 
     %Kv - Dynamic Factor
     Qv = 9; %Low end of precision quality gears, Catalog: pg. 48, AGMA class: 9
@@ -381,9 +381,9 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     Cmc = 0.8; %Crowned
     Cpf = F/(10*dp) - 0.025;
     Cpm = 1;
-    A = 0.127; %Commercial, enclosed, Table 14-9
-    B = 0.0158;
-    C = -0.93E-4;
+    A = 0.0675; %PRECISION, enclosed, Table 14-9
+    B = 0.0167;
+    C = -0.926E-4;
     Cma = A + B*F + C*F^2;
     Ce = 1;
     Km = 1 + Cmc*(Cpf*Cpm + Cma*Ce);
@@ -419,7 +419,7 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     Kt = 1;
     
     %Kr - Reliability Factor
-    Kr = 0.85; %0.90 - Eq. 14-38
+    Kr = 1; %0.99 - Eq. 14-38
     
     %Cp - Elastic Coefficient
     Cp = 2300; %Table 14-8 steel-steel
@@ -438,10 +438,13 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     BS = (Wt*Ko*Kv*Ks*(Pd/F)*((Km*Kb)/J)); %Contact stress in psi 
     
     %Factor of Safety
-    St = 75000;
-    Sc = 275000; %psi
-    Zn = 1;
-    Ch = 1;
+    
+    %Table 14-6, Grade 2 steel, carburized and hardened
+    St = 65000;
+    Sc = 225000; %psi
+    
+    Zn = 1; %Fig 14-15
+    Ch = 1; 
     Yn = 1;
 
     %Contact FOS

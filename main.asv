@@ -86,7 +86,7 @@ P2l = ceil((2*k*(m2actual+(m2actual^2+(1-2*m2actual)*(sin(PressureAngle))^2)^0.5
 N1l = floor(((P1l^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P1l*sin(PressureAngle)^2));
 N2l = floor(((P1l^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P2l*sin(PressureAngle)^2));
 
-RatioTable = table(P1, P1l, N1, N1l, m1actual, P2, P2l, N2, N2l, m2actual, ratio)
+TRatio = table(P1, P1l, N1, N1l, m1actual, P2, P2l, N2, N2l, m2actual, ratio)
 
 %old ratio determiner
 %{
@@ -155,8 +155,8 @@ TorqueB = intermediatePower/(SpeedB*pi/30);
 SpeedA = SpeedB*m1actual;
 TorqueA = inputPower/(SpeedA*pi/30);
 
-TorqueSpeedEstimation = table(TorqueA, SpeedA, TorqueB, SpeedB, TorqueC, SpeedC)
-PowerTable = table(inputPower, intermediatePower, outputPower, efficiency)
+TTorqueSpeedEstimation = table(TorqueA, SpeedA, TorqueB, SpeedB, TorqueC, SpeedC)
+TPower = table(inputPower, intermediatePower, outputPower, efficiency)
 
 %% Operating Gear Forces, Torques and Diameters
 
@@ -182,20 +182,20 @@ for x = DiametralPitch
     P2diameter = [P2diameter, P2dia];
     N2diameter = [N2diameter, N2dia];
     
-    %Transmitted Load: Pinion 1 -> Gear 1
-    Wt1 = (60000*inputPower*10^-3)/(pi*(P1dia1000)*SpeedA);
+    %Transmitted Load: Pinion 1 -> Gear 1 EQN 13-36
+    Wt1 = (60000*inputPower*10^-3)/(pi*(P1dia*1000)*SpeedA);
     %Radial Load: Pinion 1 -> Gear 1
     Wr1 = tan(PressureAngle)*Wt1;
     
     %Transmitted Load: Pinion 2 -> Gear 2
-    Wt2 = (60000*outputPower*10^-3)/(pi*(N2dia/1000)*SpeedC);
+    Wt2 = (60000*outputPower*10^-3)/(pi*(N2dia*1000)*SpeedC);
     %Radial Load: Pinion 2 -> Gear 2
     Wr2 = tan(PressureAngle)*Wt2;
     
-    Force1t = [Force1t, Wt1];
-    Force1r = [Force1r, Wr1];
-    Force2t = [Force2t, Wt2];
-    Force2r = [Force2r, Wr2];
+    Force1t = [Force1t, Wt1*1000]; %kN -> N
+    Force1r = [Force1r, Wr1*1000];
+    Force2t = [Force2t, Wt2*1000];
+    Force2r = [Force2r, Wr2*1000];
 end
 
 Force1t = transpose(Force1t(2:end));
@@ -208,7 +208,7 @@ N1diameter = transpose(N1diameter(2:end)).*100; %meters -> centimeters;
 P2diameter = transpose(P2diameter(2:end)).*100; %meters -> centimeters;
 N2diameter = transpose(N2diameter(2:end)).*100; %meters -> centimeters;
 
-ForceDiameterTable = table(transpose(DiametralPitch), Force1t, Force1r, P1diameter, N1diameter, Force2t, Force2r, P2diameter, N2diameter)
+TForceDiameter = table(transpose(DiametralPitch), Force1t, Force1r, P1diameter, N1diameter, Force2t, Force2r, P2diameter, N2diameter)
 
 %{
 
@@ -364,7 +364,7 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     V = pi*dp*n/12;        %Linear Velocity    
     
     %Ko - Overload Factor
-    Ko = 1; %uniform - electric motor
+    Ko = 1; %uniform
 
     %Kv - Dynamic Factor
     Qv = 9; %Low end of precision quality gears, Catalog: pg. 48, AGMA class: 9
@@ -381,9 +381,9 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     Cmc = 0.8; %Crowned
     Cpf = F/(10*dp) - 0.025;
     Cpm = 1;
-    A = 0.0675; %Precision, enclosed, Table 14-9
-    B = 0.0128;
-    C = -0.926E-4;
+    A = 0.127; %Commercial, enclosed, Table 14-9
+    B = 0.0158;
+    C = -0.93E-4;
     Cma = A + B*F + C*F^2;
     Ce = 1;
     Km = 1 + Cmc*(Cpf*Cpm + Cma*Ce);
@@ -407,7 +407,6 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     end
     %}
     
-    
     %J - Bending Strength Geometry Factor Fig. 14-6, Very bad lookup table
     %for selected gears
     if N == 16
@@ -420,10 +419,10 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     Kt = 1;
     
     %Kr - Reliability Factor
-    Kr = 0.85; %0.99 - Eq. 14-38
+    Kr = 0.85; %0.90 - Eq. 14-38
     
     %Cp - Elastic Coefficient
-    Cp = 2300; %Table 14-8 steel-steel
+    Cp = 23000; %Table 14-8 steel-steel
     
     %I - Pitting Resistance Geometry Factor
     mn = 1; %Load sharing ratio: 1 for spur gears
@@ -443,7 +442,7 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     Sc = 275000; %psi
     Zn = 1;
     Ch = 1;
-    Yn = 1;
+    Yn = 1.02;
 
     %Contact FOS
     CFOS = ((Sc*Zn*Ch)/(Kt*Kr))/CS;
