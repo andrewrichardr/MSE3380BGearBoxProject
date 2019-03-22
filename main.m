@@ -15,12 +15,11 @@ Duty = 2000                                                         %Hours
 
 %Gear Specs
 PressureAngle = 20*pi/180                                           %Rad
-FaceWidth = [1.5, 1.25, 1, 0.75, 0.5, 0.25, 0.188, 0.125]         %inch
+FaceWidth = [1.5, 1.25, 1, 0.75, 0.5, 0.25, 0.188, 0.125]           %inch
 DiametralPitch = [8, 10, 12, 16, 20, 24, 32, 48]                    %teeth/inch
-DiametralPitchChosen = 20;
+DiametralPitchSelected = 20;
 k = 1                                                               %Teeth Depth (1 = full)
-%Number of teeth Chosen from iterative analysis, 
-%Chosen diametral pich of 20
+
 %Number of teeth variables:
 P1 = 16
 N1 = 70
@@ -39,9 +38,11 @@ StallSpeed = 0;
 points = [StallSpeed, StallTorque;
           NoLoadSpeed, NoLoadTorque];
 polynomialDegree = length(points)-1;
-MotorLine = polyfit(points(:,1),points(:,2),polynomialDegree);
-MotorLineE = Efficiency.*MotorLine;
 
+%fit a polynomial to the two data points
+MotorLine = polyfit(points(:,1),points(:,2),polynomialDegree);
+
+%generate figure
 f1 = figure('Renderer', 'painters', 'Position', [10 10 1200 300])
 subplot(1,3,1)
 plot([StallSpeed:NoLoadSpeed], polyval(MotorLine,[StallSpeed:NoLoadSpeed]))
@@ -52,14 +53,19 @@ ylabel("Motor Torque (N.m)")
 hold off
 
 %% Gear Ratio Target (minimization)
+
+%setup equation to determine optimal ratio
 syms r
-eqn = MotorLineE(1)*reqOutputSpeed*r^2 + MotorLineE(2)*r == reqOutputTorque;
+eqn = MotorLine(1)*reqOutputSpeed*r^2 + MotorLine(2)*r == reqOutputTorque;
 soln = double(solve(eqn,r))
 
+%solve equation for tearget ratio
 ratioTarget = soln(1);
 
-TargetLine = [MotorLineE(1)*ratioTarget^2, MotorLineE(2)*ratioTarget];
+%determine line for the target ratio
+TargetLine = [MotorLine(1)*ratioTarget^2, MotorLine(2)*ratioTarget];
 
+%generate figure
 subplot(1,3,2)
 plot([StallSpeed/ratioTarget: NoLoadSpeed/ratioTarget], polyval(TargetLine,[StallSpeed/ratioTarget: NoLoadSpeed/ratioTarget]))
 hold on
@@ -86,6 +92,7 @@ P2l = ceil((2*k*(m2actual+(m2actual^2+(1-2*m2actual)*(sin(PressureAngle))^2)^0.5
 N1l = floor(((P1l^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P1l*sin(PressureAngle)^2));
 N2l = floor(((P1l^2)*(sin(PressureAngle)^2)-4*k^2)/(4*k-2*P2l*sin(PressureAngle)^2));
 
+%generate ratio table
 TRatio = table(P1, P1l, N1, N1l, m1actual, P2, P2l, N2, N2l, m2actual, ratio)
 
 %old ratio determiner
@@ -115,7 +122,8 @@ end
 outputTorque = [0];
 outputSpeed = [0];
 
-RealLine = [MotorLineE(1)*ratio^2, MotorLineE(2)*ratio];
+%Adjust line with ratio
+RealLine = [MotorLine(1)*ratio^2, MotorLine(2)*ratio];
 
 for x = [StallSpeed:NoLoadSpeed]
    outputSpeed = [outputSpeed, x/ratio];
@@ -123,6 +131,8 @@ for x = [StallSpeed:NoLoadSpeed]
 end
 outputSpeed = outputSpeed(2:end);
 outputTorque = outputTorque(2:end);
+
+%generate figure
 subplot(1,3,3)
 plot(outputSpeed, outputTorque)
 hold on
@@ -155,16 +165,19 @@ TorqueB = intermediatePower/(SpeedB*pi/30);
 SpeedA = SpeedB*m1actual;
 TorqueA = inputPower/(SpeedA*pi/30);
 
+%Table for torque and speed estimations
 TTorqueSpeedEstimation = table(TorqueA, SpeedA, TorqueB, SpeedB, TorqueC, SpeedC)
+
+%table for power estimations
 TPower = table(inputPower, intermediatePower, outputPower, efficiency)
 
 %% Operating Gear Forces, Torques and Diameters
 
+%initialize arrays
 Force1t = [0];
 Force1r = [0];
 Force2t = [0];
 Force2r = [0];
-
 P1diameter = [0];
 N1diameter = [0];
 P2diameter = [0];
@@ -177,6 +190,7 @@ for x = DiametralPitch
     P2dia = P2/x;
     N2dia = N2/x;
     
+    %record diameter
     P1diameter = [P1diameter, P1dia];
     N1diameter = [N1diameter, N1dia];
     P2diameter = [P2diameter, P2dia];
@@ -192,22 +206,24 @@ for x = DiametralPitch
     %Radial Load: Pinion 2 -> Gear 2
     Wr2 = tan(PressureAngle)*Wt2;
     
+    %Record Forces
     Force1t = [Force1t, Wt1*1000]; %kN -> N
     Force1r = [Force1r, Wr1*1000];
     Force2t = [Force2t, Wt2*1000];
     Force2r = [Force2r, Wr2*1000];
 end
 
+%Prepare arrays for table
 Force1t = transpose(Force1t(2:end));
 Force2t = transpose(Force2t(2:end));
 Force1r = transpose(Force1r(2:end));
 Force2r = transpose(Force2r(2:end));
-
 P1diameter = transpose(P1diameter(2:end)).*100; %meters -> centimeters;
 N1diameter = transpose(N1diameter(2:end)).*100; %meters -> centimeters;
 P2diameter = transpose(P2diameter(2:end)).*100; %meters -> centimeters;
 N2diameter = transpose(N2diameter(2:end)).*100; %meters -> centimeters;
 
+%Table with Forces and Diameters
 TForceDiameter = table(transpose(DiametralPitch), Force1t, Force1r, P1diameter, N1diameter, Force2t, Force2r, P2diameter, N2diameter)
 
 %{
@@ -299,7 +315,7 @@ DiameterTable = table(DiametralPitch, P1diameter, N1diameter, P2diameter, N2diam
 %% Stresses 
 % (Calculated in USCS then converted to metric)
 
-
+%Init Arrays
 ContactPinion1 = [0];
 BendingPinion1 = [0];
 ContactGear1 = [0];
@@ -316,7 +332,7 @@ Gear2 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
 
 for x = [1:length(DiametralPitch)]
  
-    p1 = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle, SpeedA*Duty*60);
+    p1 = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle, SpeedA*Duty*60);%Speed*Duty*60 -> number of revs
     g1 = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle, SpeedB*Duty*60);
     p2 = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle, SpeedB*Duty*60);
     g2 = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle, SpeedC*Duty*60);
@@ -326,7 +342,7 @@ for x = [1:length(DiametralPitch)]
     Pinion2 = [Pinion2; p2];
     Gear2 = [Gear2; g2];
 
-    if DiametralPitch(x) == DiametralPitchChosen
+    if DiametralPitch(x) == DiametralPitchSelected
        PINION1 =  p1;
        GEAR1 =  g1;
        PINION2 =  p2;
@@ -340,17 +356,20 @@ Gear1 = Gear1(2:end,:);
 Pinion2 = Pinion2(2:end,:);
 Gear2 = Gear2(2:end,:);
 
+%Appendix tables, DP varying
 names = ["DP","ContactStress", "BendingStress", "ContactFOS", "BendingFOS", "Ko", "Kv", "Ks", "Km", "Kb", "Kt", "Kr", "Cf", "J", "I"];
 Tpinion1 = array2table(Pinion1, 'VariableNames', names)
 Tgear1 = array2table(Gear1, 'VariableNames', names)
 Tpinion2 = array2table(Pinion2, 'VariableNames', names)
 Tgear2 = array2table(Gear2, 'VariableNames', names)
 
+%Prepare arrays for table
 PINION1 = transpose(PINION1);
 GEAR1 = transpose(GEAR1);
 PINION2 = transpose(PINION2);
 GEAR2 = transpose(GEAR2);
 
+%Table for selected DP
 Tselected = table(transpose(names), PINION1, GEAR1, PINION2, GEAR2)
 
 %{
@@ -361,6 +380,7 @@ F = Face Width (inches)
 WtM = Tangetntial load (Newtons)
 m = gear Ratio
 phi = pressure angle (Rad)
+duty = number of revs
 %}
 function [OUTPUT] = stresses(Pd, N, n, F, WtM, m, phi, duty) 
     dp = N/Pd;             %Diameter inches
@@ -421,7 +441,7 @@ function [OUTPUT] = stresses(Pd, N, n, F, WtM, m, phi, duty)
     end
     
     %Kt - Temperature Factor
-    Kt = 1;
+    Kt = 1; %Less than 250F
     
     %Kr - Reliability Factor
     Kr = 1; %0.99 - Eq. 14-38
