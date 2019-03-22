@@ -316,16 +316,21 @@ Gear2 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
 
 for x = [1:length(DiametralPitch)]
  
-    Pinion1 = [Pinion1; stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle)];
-    Gear1 = [Gear1; stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle)];
-    Pinion2 = [Pinion2; stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle)];
-    Gear2 = [Gear2; stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle)];
+    p1 = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle, SpeedA*Duty*60);
+    g1 = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle, SpeedB*Duty*60);
+    p2 = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle, SpeedB*Duty*60);
+    g2 = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle, SpeedC*Duty*60);
+    
+    Pinion1 = [Pinion1; p1];
+    Gear1 = [Gear1; g1];
+    Pinion2 = [Pinion2; p2];
+    Gear2 = [Gear2; g2];
 
     if DiametralPitch(x) == DiametralPitchChosen
-       PINION1 =  stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
-       GEAR1 =  stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
-       PINION2 =  stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
-       GEAR2 =  stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
+       PINION1 =  p1;
+       GEAR1 =  g1;
+       PINION2 =  p2;
+       GEAR2 =  g2;
     end
     
 end
@@ -357,7 +362,7 @@ WtM = Tangetntial load (Newtons)
 m = gear Ratio
 phi = pressure angle (Rad)
 %}
-function [OUTPUT] = stresses(Pd, N, n, F, WtM, m, phi) 
+function [OUTPUT] = stresses(Pd, N, n, F, WtM, m, phi, duty) 
     dp = N/Pd;             %Diameter inches
     V = pi*dp*n/12;        %Linear Velocity    
     Wt = 0.224809*WtM ;     % Newtons -> lbf
@@ -439,13 +444,23 @@ function [OUTPUT] = stresses(Pd, N, n, F, WtM, m, phi)
     
     %Factor of Safety
     
-    %Table 14-6, Grade 2 steel, carburized and hardened
-    St = 65000;
-    Sc = 225000; %psi
+    %Table 14-6, Grade 3 steel, carburized and hardened
+    St = 75000;
+    Sc = 275000; %psi
     
-    Zn = 1; %Fig 14-15
+    if duty > 10^4 %Fig 14-15
+        Zn = 2.466*duty^-0.056;
+    else
+        Zn = 1.5;
+    end
+        
     Ch = 1; 
-    Yn = 1;
+    
+    if duty > 10^6 %Fig 14-14
+        Yn = 1.6831*duty^-0.0323;
+    else
+        Yn = 6.1514*duty^-0.1192;
+    end
 
     %Contact FOS
     CFOS = ((Sc*Zn*Ch)/(Kt*Kr))/CS;

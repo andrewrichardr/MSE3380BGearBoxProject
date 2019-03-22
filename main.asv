@@ -316,16 +316,21 @@ Gear2 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
 
 for x = [1:length(DiametralPitch)]
  
-    Pinion1 = [Pinion1; stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle)];
-    Gear1 = [Gear1; stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle)];
-    Pinion2 = [Pinion2; stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle)];
-    Gear2 = [Gear2; stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle)];
+    p1 = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle, SpeedA*Duty*60);
+    g1 = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle, SpeedB*Duty*60);
+    p2 = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle, SpeedB*Duty*60);
+    g2 = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle, SpeedC*Duty*60);
+    
+    Pinion1 = [Pinion1; p1];
+    Gear1 = [Gear1; g1];
+    Pinion2 = [Pinion2; p2];
+    Gear2 = [Gear2; g2];
 
     if DiametralPitch(x) == DiametralPitchChosen
-       PINION1 =  stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
-       GEAR1 =  stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
-       PINION2 =  stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
-       GEAR2 =  stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
+       PINION1 =  p1;
+       GEAR1 =  g1;
+       PINION2 =  p2;
+       GEAR2 =  g2;
     end
     
 end
@@ -349,22 +354,22 @@ GEAR2 = transpose(GEAR2);
 Tselected = table(transpose(names), PINION1, GEAR1, PINION2, GEAR2)
 
 %{
-Pd = Diametral Pitch
-N = Number of Teeth on pinion
+Pd = Diametral Pitch (teeth/inch)
+N = Number of Teeth
 n = Angular Velocity (rpm)
-F = Face Width
-Wt = Tangetntial load
+F = Face Width (inches)
+WtM = Tangetntial load (Newtons)
 m = gear Ratio
-phi = pressure angle
-ht = tooth height
-tr = rim thickness
+phi = pressure angle (Rad)
 %}
-function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J) 
+function [OUTPUT] = stresses(Pd, N, n, F, WtM, m, phi, duty) 
     dp = N/Pd;             %Diameter inches
     V = pi*dp*n/12;        %Linear Velocity    
+    Wt = 0.224809*WtM ;     % Newtons -> lbf
+    
     
     %Ko - Overload Factor
-    Ko = 1; %uniform
+    Ko = 1.25; %uniform - MODERATE SHOCK
 
     %Kv - Dynamic Factor
     Qv = 9; %Low end of precision quality gears, Catalog: pg. 48, AGMA class: 9
@@ -381,9 +386,9 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     Cmc = 0.8; %Crowned
     Cpf = F/(10*dp) - 0.025;
     Cpm = 1;
-    A = 0.127; %Commercial, enclosed, Table 14-9
-    B = 0.0158;
-    C = -0.93E-4;
+    A = 0.0675; %PRECISION, enclosed, Table 14-9
+    B = 0.0167;
+    C = -0.926E-4;
     Cma = A + B*F + C*F^2;
     Ce = 1;
     Km = 1 + Cmc*(Cpf*Cpm + Cma*Ce);
@@ -419,10 +424,10 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     Kt = 1;
     
     %Kr - Reliability Factor
-    Kr = 0.85; %0.90 - Eq. 14-38
+    Kr = 1; %0.99 - Eq. 14-38
     
     %Cp - Elastic Coefficient
-    Cp = 23000; %Table 14-8 steel-steel
+    Cp = 2300; %Table 14-8 steel-steel
     
     %I - Pitting Resistance Geometry Factor
     mn = 1; %Load sharing ratio: 1 for spur gears
@@ -438,11 +443,24 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J)
     BS = (Wt*Ko*Kv*Ks*(Pd/F)*((Km*Kb)/J)); %Contact stress in psi 
     
     %Factor of Safety
+    
+    %Table 14-6, Grade 3 steel, carburized and hardened
     St = 75000;
     Sc = 275000; %psi
-    Zn = 1;
-    Ch = 1;
-    Yn = 1.02;
+    
+    if duty > 10^4 %Fig 14-15
+        Zn = 2.466*duty^-0.056
+    else
+        Zn = 1.5
+    end
+        
+    Ch = 1; 
+    
+    if duty > 10^6 %Fig 14-14
+        Yn = 1.6831*duty^-0.0323
+    else
+        Yn = 6.1514*duty^-0.1192
+    end
 
     %Contact FOS
     CFOS = ((Sc*Zn*Ch)/(Kt*Kr))/CS;
