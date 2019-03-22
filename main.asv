@@ -17,6 +17,7 @@ Duty = 2000                                                         %Hours
 PressureAngle = 20*pi/180                                           %Rad
 FaceWidth = [1.5, 1.25, 1, 0.75, 0.5, 0.25, 0.188, 0.125]         %inch
 DiametralPitch = [8, 10, 12, 16, 20, 24, 32, 48]                    %teeth/inch
+DiametralPitchChosen = 20;
 k = 1                                                               %Teeth Depth (1 = full)
 %Number of teeth Chosen from iterative analysis, 
 %Chosen diametral pich of 20
@@ -182,12 +183,12 @@ for x = DiametralPitch
     N2diameter = [N2diameter, N2dia];
     
     %Transmitted Load: Pinion 1 -> Gear 1
-    Wt1 = (60000*inputPower*10^-3)/(pi*P1dia*SpeedA);
+    Wt1 = (60000*inputPower*10^-3)/(pi*(P1dia1000)*SpeedA);
     %Radial Load: Pinion 1 -> Gear 1
     Wr1 = tan(PressureAngle)*Wt1;
     
     %Transmitted Load: Pinion 2 -> Gear 2
-    Wt2 = (60000*outputPower*10^-3)/(pi*N2dia*SpeedC);
+    Wt2 = (60000*outputPower*10^-3)/(pi*(N2dia/1000)*SpeedC);
     %Radial Load: Pinion 2 -> Gear 2
     Wr2 = tan(PressureAngle)*Wt2;
     
@@ -308,48 +309,45 @@ BendingPinion2 = [0];
 ContactGear2 = [0];
 BendingGear2 = [0];
 
-
+Pinion1 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+Gear1 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+Pinion2 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+Gear2 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
 
 for x = [1:length(DiametralPitch)]
-    %Pinion 1
-    pinion1 = stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
-    %Gear 1
-    gear1 = stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
-    %Pinion 2
-    pinion2 = stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
-    %Gear 2
-    gear2 = stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
-    
-    ContactPinion1 = [ContactPinion1, pinion1(1)];
-    BendingPinion1 = [BendingPinion1, pinion1(2)];
-    ContactGear1 = [ContactGear1, gear1(1)];
-    BendingGear1 = [BendingGear1, gear1(2)];
-    ContactPinion2 = [ContactPinion2, pinion2(1)];
-    BendingPinion2 = [BendingPinion2, pinion2(2)];
-    ContactGear2 = [ContactGear2, gear2(1)];
-    BendingGear2 = [BendingGear2, gear2(2)];
-    
-    if DiametralPitch(x) == 20
-       PINION1 =  pinion1
-       GEAR1 =  gear1
-       PINION2 =  pinion2
-       GEAR2 =  gear2
+ 
+    Pinion1 = [Pinion1; stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle)];
+    Gear1 = [Gear1; stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle)];
+    Pinion2 = [Pinion2; stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle)];
+    Gear2 = [Gear2; stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle)];
+
+    if DiametralPitch(x) == DiametralPitchChosen
+       PINION1 =  stresses(DiametralPitch(x), P1, SpeedA, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
+       GEAR1 =  stresses(DiametralPitch(x), N1, SpeedB, FaceWidth(x), Force1t(x), m1actual, PressureAngle);
+       PINION2 =  stresses(DiametralPitch(x), P2, SpeedB, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
+       GEAR2 =  stresses(DiametralPitch(x), N2, SpeedC, FaceWidth(x), Force2t(x), m2actual, PressureAngle);
     end
     
 end
 
-ContactPinion1 = transpose(ContactPinion1(2:end));
-BendingPinion1 = transpose(BendingPinion1(2:end));
-ContactGear1 = transpose(ContactGear1(2:end));
-BendingGear1 = transpose(BendingGear1(2:end));
-ContactPinion2 = transpose(ContactPinion2(2:end));
-BendingPinion2 = transpose(BendingPinion2(2:end));
-ContactGear2 = transpose(ContactGear2(2:end));
-BendingGear2 = transpose(BendingGear2(2:end));
+Pinion1 = Pinion1(2:end,:);
+Gear1 = Gear1(2:end,:);
+Pinion2 = Pinion2(2:end,:);
+Gear2 = Gear2(2:end,:);
 
-StressTable = table(transpose(DiametralPitch), ContactPinion1, BendingPinion1, ContactGear1, BendingGear1, ContactPinion2, BendingPinion2, ContactGear2, BendingGear2)
+names = ["DP","ContactStress", "BendingStress", "ContactFOS", "BendingFOS", "Ko", "Kv", "Ks", "Km", "Kb", "Kt", "Kr", "Cf", "J", "I"];
+Tpinion1 = array2table(Pinion1, 'VariableNames', names)
+Tgear1 = array2table(Gear1, 'VariableNames', names)
+Tpinion2 = array2table(Pinion2, 'VariableNames', names)
+Tgear2 = array2table(Gear2, 'VariableNames', names)
 
-ParameterTable = table(PINION1, GEAR1, PINION2,2)
+PINION1 = transpose(PINION1);
+GEAR1 = transpose(GEAR1);
+PINION2 = transpose(PINION2);
+GEAR2 = transpose(GEAR2);
+
+Tselected = table(transpose(names), PINION1, GEAR1, PINION2, GEAR2)
+
 %{
 Pd = Diametral Pitch
 N = Number of Teeth on pinion
@@ -361,12 +359,12 @@ phi = pressure angle
 ht = tooth height
 tr = rim thickness
 %}
-function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi) 
+function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi, J) 
     dp = N/Pd;             %Diameter inches
     V = pi*dp*n/12;        %Linear Velocity    
     
     %Ko - Overload Factor
-    Ko = 1.2; %Moderate Shock
+    Ko = 1; %uniform - electric motor
 
     %Kv - Dynamic Factor
     Qv = 9; %Low end of precision quality gears, Catalog: pg. 48, AGMA class: 9
@@ -409,14 +407,20 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi)
     end
     %}
     
-    %J - Bending Strength Geometry Factor
-    J = 0.275; %Figure 14-6
+    
+    %J - Bending Strength Geometry Factor Fig. 14-6, Very bad lookup table
+    %for selected gears
+    if N == 16
+        J = 0.27;
+    else
+        J = 0.41;
+    end
     
     %Kt - Temperature Factor
     Kt = 1;
     
     %Kr - Reliability Factor
-    Kr = 1; %0.99 - Eq. 14-38
+    Kr = 0.85; %0.99 - Eq. 14-38
     
     %Cp - Elastic Coefficient
     Cp = 2300; %Table 14-8 steel-steel
@@ -427,17 +431,30 @@ function [OUTPUT] = stresses(Pd, N, n, F, Wt, m, phi)
     
     %Cf - surface condition factor
     Cf = 1;
-    
-    %Zn - Stress-Cycle Factor
-    Zn = 1;
 
     %Contact Stress
-    CS = (Cp*sqrt(Wt*Ko*Kv*Ks*(Km/(dp*F))*(Cf/I)))*0.00689476; %Contact stress in psi -> MPa
+    CS = (Cp*sqrt(Wt*Ko*Kv*Ks*(Km/(dp*F))*(Cf/I))); %Contact stress in psi
 
     %Bending Stress
-    BS = (Wt*Ko*Kv*Ks*(Pd/F)*((Km*Kb)/J))*0.00689476; %Contact stress in psi -> MPa
+    BS = (Wt*Ko*Kv*Ks*(Pd/F)*((Km*Kb)/J)); %Contact stress in psi 
     
-    OUTPUT = [CS, BS, Ko, Kv, Ks, Km, Kb, Kt, Kr, Cf, J, I]
+    %Factor of Safety
+    St = 75000;
+    Sc = 275000; %psi
+    Zn = 1;
+    Ch = 1;
+    Yn = 1;
+
+    %Contact FOS
+    CFOS = ((Sc*Zn*Ch)/(Kt*Kr))/CS;
+    
+    %Bending FOS
+    BFOS = ((St*Yn)/(Kt*Kr))/BS;
+    
+    CS = CS*0.00689476; %psi -> MPa
+    BS = BS*0.00689476;
+    
+    OUTPUT = [Pd, CS, BS, CFOS, BFOS, Ko, Kv, Ks, Km, Kb, Kt, Kr, Cf, J, I];
 end
 
 
