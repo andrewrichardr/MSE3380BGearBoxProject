@@ -397,19 +397,9 @@ TTorqueCalc = table(["Shaft A";"Shaft B";"Shaft C"], Torque)
 TForceCalc = table(["Pinion 1";"Gear 1";"Pinion 2";"Gear 2"], Wt, Wr)
 
 %% Shaft A BMD
-
-%define Shaft A length and positions, units: meters
 LengthA = 0;
 BearingA1pos = 0;
 BearingA2pos = 0;
-Motor1pos = 0;
-Pinion1pos = 0;
-
-
-
-
-
-
 
 
 
