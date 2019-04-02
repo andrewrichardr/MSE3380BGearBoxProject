@@ -498,7 +498,7 @@ ylim([min(BendingMomentXZ(:,2))-range(BendingMomentXZ(:,2))*padding max(BendingM
 hold off
 
 BearingA1 = transpose(BearingA1)
-BearingA1 = transpose(BearingA1)
+BearingA2 = transpose(BearingA2)
 TShaftA = table(["XY"; "XZ"], BearingA1, [Pxy; Pxz], BearingA2)
 
 %% Shaft B BMD
@@ -602,9 +602,9 @@ ylabel("Bending Moment (N.m)")
 ylim([min(BendingMomentXZ(:,2))-range(BendingMomentXZ(:,2))*padding max(BendingMomentXZ(:,2))+range(BendingMomentXZ(:,2))*padding])
 hold off
 
-BearingA1 = transpose(BearingA1)
-BearingB2 = transpose(Bearing)
-TShaftB = table(["XY"; "XZ"], BearingB1, [Pxy; Pxz], BearingB2)
+BearingB1 = transpose(BearingB1)
+BearingB2 = transpose(BearingB2)
+TShaftB = table(["XY"; "XZ"], BearingB1, [Gxy; Gxz], [Pxy; Pxz], BearingB2)
 
 %% Test
 %{
