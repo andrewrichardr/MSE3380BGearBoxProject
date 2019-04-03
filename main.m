@@ -405,101 +405,63 @@ BearingA1pos = 0; %bearing supports shaft
 Motor1pos = 0; %motor generates torque
 Pinion1pos = 0.5*0.0254; %inch -> meter;
 
-%generate system of equations for the shaft
-% Variable naming convention: B1xy
-% B = Bearing, P = Pinion, G = Gear, M = motor or chuck
-% 1 = first bearing from the origin, 2 = second from origin...
-% xy, xz, yz = reference plane
-% Prad = pinion radius, Grad = gear radius
-syms B1xy B1xz B2xy B2xz Pxy Pxz Gxy Gxz Myz 
-syms B1Pos B2Pos PPos GPos MPos Prad Grad
+pinion = [Wr(1), Wt(1), Pinion1pos, P1, 1];
+gear = [0, 0, 0, 0, 0];
+moment = [Torque(1), Motor1pos];
+bearing = [BearingA1pos, BearingA2pos];
 
-%Pinion
-Pxy = Wr(1);
-Pxz = Wt(1);
-PPos = Pinion1pos;
-Prad = 0.5*0.0254*P1/DiametralPitchSelected;
-
-%Gear
-Gxy = 0;%No gear on shaft A
-Gxz = 0;
-GPos = 0;
-Grad = 0;
-
-%Motor
-Myz = Torque(1);
-Mpos = 0;
-
-%Bearing Locations
-B1Pos = BearingA1pos;
-B2Pos = BearingA2pos;
-
-% xy equations
-SigmaFxy = B1xy + B2xy + Pxy + Gxy == 0
-SigmaMxy = B1xy*B1Pos + B2xy*B2Pos + Pxy*PPos + Gxy*GPos == 0
- 
-% xz equations
-SigmaFxz = B1xz + B2xz + Pxz + Gxz == 0
-SigmaMxz = B1xz*B1Pos + B2xz*B2Pos + Pxz*PPos + Gxz*GPos == 0
-
-% yz equations: gears are stacked in the y-direction
-SigmaTyz = Myz + Pxz*Prad + Gxz*Grad == 0
-
-%Solve system of equations
-eqns = [SigmaFxy; SigmaMxy; SigmaFxz; SigmaMxz; SigmaTyz]
-soln = solve(eqns)
-soln = structfun(@double,soln)
-
-%define bearing values
-BearingA1 = [soln(1), soln(2)];
-BearingA2 = [soln(3), soln(4)];
+[OUT] = BMDGenerator(pinion, gear, bearing)
+FxyA = OUT(1,:); 
+FxyposA = OUT(2,:); 
+FxzA = OUT(3,:); 
+FxzposA = OUT(4,:);
 
 %Shear Force and Bending Moment Diagrams
 padding = 0.2
-f2 = figure()
+f4 = figure('Renderer', 'painters', 'Position', [10 10 900 600])
 hold on
 title("Shaft A")
 hold off
-subplot(2,2,1)
-ShearXY = Shear(LengthA, [B1Pos, PPos, B2Pos], [BearingA1(1) Pxy BearingA2(1)]);
+subplot(3,2,1)
+ShearXY = Shear(LengthA, FxyposA, FxyA);
 plot(ShearXY(:,1)*1000, ShearXY(:,2))
 hold on
 title("XY Shear Force")
 xlabel("Position (mm)")
 ylabel("Shear Force (N)")
-ylim([min(ShearXY(:,2))-range(ShearXY(:,2))*padding max(ShearXY(:,2))+range(ShearXY(:,2))*padding])
 hold off
-subplot(2,2,2)
-ShearXZ = Shear(LengthA, [B1Pos, PPos, B2Pos], [BearingA1(2) Pxz BearingA2(2)]);
+subplot(3,2,2)
+ShearXZ = Shear(LengthA, FxzposA, FxzA);
 plot(ShearXZ(:,1)*1000, ShearXZ(:,2))
 hold on
 title("XZ Shear Force")
 xlabel("Position (mm)")
 ylabel("Shear Force (N)")
-ylim([min(ShearXZ(:,2))-range(ShearXZ(:,2))*padding max(ShearXZ(:,2))+range(ShearXZ(:,2))*padding])
 hold off
-subplot(2,2,3)
-BendingMomentXY = Moment(LengthA, [B1Pos, PPos, B2Pos], [BearingA1(1) Pxy BearingA2(1)]);
+subplot(3,2,3)
+BendingMomentXY = Moment(LengthA, FxyposA, FxyA);
 plot(BendingMomentXY(:,1)*1000, BendingMomentXY(:,2))
 hold on
 title("XY Bending Moment")
 xlabel("Position (mm)")
 ylabel("Bending Moment (N.m)")
-ylim([min(BendingMomentXY(:,2))-range(BendingMomentXY(:,2))*padding max(BendingMomentXY(:,2))+range(BendingMomentXY(:,2))*padding])
 hold off
-subplot(2,2,4)
-BendingMomentXZ = Moment(LengthA, [B1Pos, PPos, B2Pos], [BearingA1(2) Pxz BearingA2(2)]);
+subplot(3,2,4)
+BendingMomentXZ = Moment(LengthA, FxzposA, FxzA);
 plot(BendingMomentXZ(:,1)*1000, BendingMomentXZ(:,2))
 hold on
 title("XZ Bending Moment")
 xlabel("Position (mm)")
 ylabel("Bending Moment (N.m)")
-ylim([min(BendingMomentXZ(:,2))-range(BendingMomentXZ(:,2))*padding max(BendingMomentXZ(:,2))+range(BendingMomentXZ(:,2))*padding])
 hold off
-
-BearingA1 = transpose(BearingA1)
-BearingA2 = transpose(BearingA2)
-TShaftA = table(["XY"; "XZ"], BearingA1, [Pxy; Pxz], BearingA2)
+subplot(3,2,5:6)
+TorqueX = TorquePlotter(LengthA, pinion, gear, moment);
+plot(TorqueX(:,1)*1000, TorqueX(:,2))
+hold on
+title("X Torque")
+xlabel("Position (mm)")
+ylabel("Torque (N.m)")
+hold off
 
 %% Shaft B BMD
 
@@ -510,101 +472,131 @@ BearingB1pos = 0; %bearing supports shaft
 Gear1pos = 0.5*0.0254; %motor generates torque
 Pinion2pos = 1*0.0254; %inch -> meter;
 
-%generate system of equations for the shaft
-% Variable naming convention: B1xy
-% B = Bearing, P = Pinion, G = Gear, M = motor or chuck
-% 1 = first bearing from the origin, 2 = second from origin...
-% xy, xz, yz = reference plane
-% Prad = pinion radius, Grad = gear radius
-syms B1xy B1xz B2xy B2xz Pxy Pxz Gxy Gxz Myz 
-syms B1Pos B2Pos PPos GPos MPos Prad Grad
+pinion = [Wr(3), Wt(3), Pinion2pos, P2, 1];
+gear = [ Wr(2), Wt(2), Gear1pos, N1, 0];
+moment = [0, 0];
+bearing = [BearingB1pos, BearingB2pos];
 
-%Pinion
-Pxy = Wr(3);
-Pxz = Wt(3);
-PPos = Pinion2pos;
-Prad = 0.5*0.0254*P2/DiametralPitchSelected;
-
-%Gear
-Gxy = Wr(2);
-Gxz = Wt(2);
-GPos = Gear1pos;
-Grad = 0.5*0.0254*N1/DiametralPitchSelected;
-
-%Motor/chuck
-Myz = 0;
-Mpos = 0;
-
-%Bearing Locations
-B1Pos = BearingB1pos;
-B2Pos = BearingB2pos;
-
-% xy equations
-SigmaFxy = B1xy + B2xy + Pxy + Gxy == 0
-SigmaMxy = B1xy*B1Pos + B2xy*B2Pos + Pxy*PPos + Gxy*GPos == 0
- 
-% xz equations
-SigmaFxz = B1xz + B2xz + Pxz + Gxz == 0
-SigmaMxz = B1xz*B1Pos + B2xz*B2Pos + Pxz*PPos + Gxz*GPos == 0
-
-% yz equations: gears are stacked in the y-direction
-SigmaTyz = Myz + Pxz*Prad + Gxz*Grad == 0
-
-%Solve system of equations
-eqns = [SigmaFxy; SigmaMxy; SigmaFxz; SigmaMxz; SigmaTyz]
-soln = solve(eqns)
-soln = structfun(@double,soln)
-
-%define bearing values
-BearingB1 = [soln(1), soln(2)];
-BearingB2 = [soln(3), soln(4)];
+[OUT] = BMDGenerator(pinion, gear, bearing)
+FxyB = OUT(1,:); 
+FxyposB = OUT(2,:); 
+FxzB = OUT(3,:); 
+FxzposB = OUT(4,:);
 
 %Shear Force and Bending Moment Diagrams
 padding = 0.2
-f3 = figure()
+f5 = figure('Renderer', 'painters', 'Position', [10 10 900 600])
 hold on
 title("Shaft B")
 hold off
-subplot(2,2,1)
-ShearXY = Shear(LengthB, [B1Pos, GPos, PPos, B2Pos], [BearingB1(1) Gxy Pxy BearingB2(1)]);
+subplot(3,2,1)
+ShearXY = Shear(LengthB, FxyposB, FxyB);
 plot(ShearXY(:,1)*1000, ShearXY(:,2))
 hold on
 title("XY Shear Force")
 xlabel("Position (mm)")
 ylabel("Shear Force (N)")
-ylim([min(ShearXY(:,2))-range(ShearXY(:,2))*padding max(ShearXY(:,2))+range(ShearXY(:,2))*padding])
 hold off
-subplot(2,2,2)
-ShearXZ = Shear(LengthB, [B1Pos, GPos, PPos, B2Pos], [BearingB1(2) Gxz Pxz BearingB2(2)]);
+subplot(3,2,2)
+ShearXZ = Shear(LengthB, FxzposB, FxzB);
 plot(ShearXZ(:,1)*1000, ShearXZ(:,2))
 hold on
 title("XZ Shear Force")
 xlabel("Position (mm)")
 ylabel("Shear Force (N)")
-ylim([min(ShearXZ(:,2))-range(ShearXZ(:,2))*padding max(ShearXZ(:,2))+range(ShearXZ(:,2))*padding])
 hold off
-subplot(2,2,3)
-BendingMomentXY = Moment(LengthB, [B1Pos, GPos, PPos, B2Pos], [BearingB1(1) Gxy Pxy BearingB2(1)]);
+subplot(3,2,3)
+BendingMomentXY = Moment(LengthB, FxyposB, FxyB);
 plot(BendingMomentXY(:,1)*1000, BendingMomentXY(:,2))
 hold on
 title("XY Bending Moment")
 xlabel("Position (mm)")
 ylabel("Bending Moment (N.m)")
-ylim([min(BendingMomentXY(:,2))-range(BendingMomentXY(:,2))*padding max(BendingMomentXY(:,2))+range(BendingMomentXY(:,2))*padding])
 hold off
-subplot(2,2,4)
-BendingMomentXZ = Moment(LengthB, [B1Pos, GPos, PPos, B2Pos], [BearingB1(2) Gxz Pxz BearingB2(2)]);
+subplot(3,2,4)
+BendingMomentXZ = Moment(LengthB, FxzposB, FxzB);
 plot(BendingMomentXZ(:,1)*1000, BendingMomentXZ(:,2))
 hold on
 title("XZ Bending Moment")
 xlabel("Position (mm)")
 ylabel("Bending Moment (N.m)")
-ylim([min(BendingMomentXZ(:,2))-range(BendingMomentXZ(:,2))*padding max(BendingMomentXZ(:,2))+range(BendingMomentXZ(:,2))*padding])
+hold off
+subplot(3,2,5:6)
+TorqueX = TorquePlotter(LengthB, pinion, gear, moment);
+plot(TorqueX(:,1)*1000, TorqueX(:,2))
+hold on
+title("X Torque")
+xlabel("Position (mm)")
+ylabel("Torque (N.m)")
 hold off
 
-BearingB1 = transpose(BearingB1)
-BearingB2 = transpose(BearingB2)
-TShaftB = table(["XY"; "XZ"], BearingB1, [Gxy; Gxz], [Pxy; Pxz], BearingB2)
+
+%% Shaft C BMD
+
+%define Shaft B length and positions, units: meters
+LengthC = 1.5*0.0254; %inch -> meter
+BearingC2pos = 1*0.0254;
+BearingC1pos = 0; %bearing supports shaft
+Gear2pos = 0.5*0.0254; %motor generates torque
+Chuckpos = 1.5*0.0254; %inch -> meter;
+
+pinion = [0,0,0,0,0];
+gear = [Wr(4), Wt(4), Gear2pos, N2, 0];
+moment = [-1*Torque(3), Chuckpos];
+bearing = [BearingC1pos, BearingC2pos];
+
+[OUT] = BMDGenerator(pinion, gear, bearing)
+FxyC = OUT(1,:); 
+FxyposC = OUT(2,:); 
+FxzC = OUT(3,:); 
+FxzposC = OUT(4,:);
+
+%Shear Force and Bending Moment Diagrams
+padding = 0.2
+f6 = figure('Renderer', 'painters', 'Position', [10 10 900 600])
+hold on
+title("Shaft C")
+hold off
+subplot(3,2,1)
+ShearXY = Shear(LengthC, FxyposC, FxyC);
+plot(ShearXY(:,1)*1000, ShearXY(:,2))
+hold on
+title("XY Shear Force")
+xlabel("Position (mm)")
+ylabel("Shear Force (N)")
+hold off
+subplot(3,2,2)
+ShearXZ = Shear(LengthC, FxzposC, FxzC);
+plot(ShearXZ(:,1)*1000, ShearXZ(:,2))
+hold on
+title("XZ Shear Force")
+xlabel("Position (mm)")
+ylabel("Shear Force (N)")
+hold off
+subplot(3,2,3)
+BendingMomentXY = Moment(LengthC, FxyposC, FxyC);
+plot(BendingMomentXY(:,1)*1000, BendingMomentXY(:,2))
+hold on
+title("XY Bending Moment")
+xlabel("Position (mm)")
+ylabel("Bending Moment (N.m)")
+hold off
+subplot(3,2,4)
+BendingMomentXZ = Moment(LengthC, FxzposC, FxzC);
+plot(BendingMomentXZ(:,1)*1000, BendingMomentXZ(:,2))
+hold on
+title("XZ Bending Moment")
+xlabel("Position (mm)")
+ylabel("Bending Moment (N.m)")
+hold off
+subplot(3,2,5:6)
+TorqueX = TorquePlotter(LengthC, pinion, gear, moment);
+plot(TorqueX(:,1)*1000, TorqueX(:,2))
+hold on
+title("X Torque")
+xlabel("Position (mm)")
+ylabel("Torque (N.m)")
+hold off
 
 %% Test
 %{
@@ -617,6 +609,60 @@ plot(Shear(L, Fpos, F))
 subplot(2,1,2)
 plot(Moment(L, Fpos, F))
 %}
+
+function [OUTPUT] = BMDGenerator(pinion, gear, bearing)
+
+Pxy = pinion(1); 
+Pxz = pinion(2); 
+PPos = pinion(3); 
+P = pinion(4);
+
+Gxy = gear(1); 
+Gxz = gear(2); 
+GPos = gear(3); 
+N = gear(4);
+
+B1Pos = bearing(1); 
+B2Pos = bearing(2);
+
+DiametralPitchSelected = 20;
+%generate system of equations for the shaft
+% Variable naming convention: B1xy
+% B = Bearing, P = Pinion, G = Gear, M = motor or chuck
+% 1 = first bearing from the origin, 2 = second from origin...
+% xy, xz, yz = reference plane
+% Prad = pinion radius, Grad = gear radius
+syms B1xy B1xz B2xy B2xz
+
+Prad = 0.5*0.0254*P/DiametralPitchSelected;
+Grad = 0.5*0.0254*N/DiametralPitchSelected;
+
+% xy equations
+SigmaFxy = B1xy + B2xy + Pxy + Gxy == 0
+SigmaMxy = B1xy*B1Pos + B2xy*B2Pos + Pxy*PPos + Gxy*GPos == 0
+ 
+% xz equations
+SigmaFxz = B1xz + B2xz + Pxz + Gxz == 0
+SigmaMxz = B1xz*B1Pos + B2xz*B2Pos + Pxz*PPos + Gxz*GPos == 0
+
+%Solve system of equations
+eqns = [SigmaFxy; SigmaMxy; SigmaFxz; SigmaMxz]
+soln = solve(eqns)
+soln = structfun(@double,soln)
+
+%define bearing values
+B1xy = soln(1);
+B1xz = soln(2);
+B2xy = soln(3); 
+B2xz = soln(4);
+
+Fxypos = [B1Pos, PPos, GPos, B2Pos];
+Fxzpos = [B1Pos, PPos, GPos, B2Pos];
+Fxy = [B1xy, Pxy, Gxy, B2xy];
+Fxz = [B1xz, Pxz, Gxz, B2xz];
+
+OUTPUT = [Fxy; Fxypos; Fxz; Fxzpos];
+end
 
 %Shear Force Diagram Plotter: Tlength = length of shaft, Fpos = array of force
 %positions (3 decimal places or fewer), F = array for force vectors (Transverse Direction Only)
@@ -660,19 +706,46 @@ end
 
 %Bending Moment Plotter: Tlength = length of shaft, Fpos = array of force
 %positions (3 decimal places or fewer), F = array for force vectors (Transverse Direction Only)
-function T = TorquePlotter(Tlength, FPos, F)
+function T = TorquePlotter(Tlength, pinion, gear, moment)
+    DiametralPitchSelected = 20;  
     RES = 10^-6;
     size = ceil(Tlength/RES + 1);
-    M = zeros(size, 2); 
+    T = zeros(size, 2); 
+    
+    Pxz = pinion(2); 
+    PPos = pinion(3); 
+    P = pinion(4);
+    Prad = 0.5*0.0254*P/DiametralPitchSelected;
+    Pdir = pinion(5);
+    if Pdir == 1
+        Pxz = Pxz*-1;
+    end
+    
+    
+    Gxz = gear(2); 
+    GPos = gear(3); 
+    N = gear(4);
+    Grad = 0.5*0.0254*N/DiametralPitchSelected;
+    Gdir = gear(5);
+    if Gdir == 1
+        Gxz = Gxz*-1;
+    end
+    
+    Myz = moment(1); 
+    Mpos = moment(2);  
+    
+    ActingTorques = [Myz, Mpos; Gxz*Grad, GPos; Pxz*Prad, PPos];
+    ActingTorques = sortrows(ActingTorques, 2); %sort by position
+    
     k = 0;
-    for i = 1:length(FPos)
+    for i = 1:length(ActingTorques)
         k = k+1;
-        mx = F(k)
+        t = ActingTorques(k,1)
         for pos = 0:RES:Tlength
             index = int64((pos/RES)+1);
-            M(index, 1) = pos;  
-            if(pos >= FPos(i))
-                M(index, 2) = M(index, 2) + mx*(pos - FPos(i));              
+            T(index, 1) = pos;  
+            if(pos >= ActingTorques(i,2))
+                T(index, 2) = T(index, 2) + t;              
             end
         end
     end
