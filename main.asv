@@ -654,7 +654,13 @@ subplot(2,1,2)
 plot(Moment(L, Fpos, F))
 %}
 
-function [OUTPUT] = FatigueFOS(d, Kf, Kfs, Ma, Mm, Ta, Tm, Se, Sut)
+function [OUTPUT] = FatigueFOS()
+Kf = 1;
+Kfs = 1;
+Ma = 1;
+Ta = ;
+d = 1;
+Se = 1;
 
 A = (4*(Kf*Ma)^2 + 3*(Kfs*Ta)^2)^0.5;
 B = (4*(Kf*Mm)^2 + 3*(Kfs*Tm)^2)^0.5;
@@ -670,8 +676,6 @@ n_soderberg = 1/n_soderberg;
 
 n_goodman = (16/(pi*d^3))*((1/Se)*(4*(Kf*Ma)^2 + 3*(Kfs*Ta)^2)^0.5 + (1/Sut)*(4*(Kf*Mm)^2 + 3*(Kfs*Tm)^2)^0.5)
 n_goodman = 1/n_goodman;
-
-OUTPUT = [n_goodman; n_gerber; n_ASME; n_soderberg]
 end
 
 function [OUTPUT] = BMDGenerator(pinion, gear, bearing)
