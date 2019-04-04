@@ -598,6 +598,29 @@ xlabel("Position (mm)")
 ylabel("Torque (N.m)")
 hold off
 
+%% BMD Tables
+
+
+
+%% Endurance Limits
+
+%Shaft Daimeters (meters) 1 = A, 2 = B...
+Diameters = [5*10^-3; 5*10^-3; 5*10^-3];
+
+%Shaft Material Properties
+%Ultimate Tensile Stress (MPa)
+UltimateTensile = [800; 800; 800]; %assumed material from CES
+
+%Endurance Limits (MPa)
+EA = enduranceLimit(Diameters(1), UltimateTensile(1));
+EB = enduranceLimit(Diameters(2), UltimateTensile(2));
+EC = enduranceLimit(Diameters(3), UltimateTensile(3));
+EnduranceLimit = [EA(1); EB(1); EC(1)];
+MarinFactors = [EA; EB; EC];
+
+TEnduranceLimit = table(Diameters, UltimateTensile, EnduranceLimit)
+TMarinFactors = array2table([["A";"B";"C"],Diameters, UltimateTensile, MarinFactors], 'VariableNames', ["Shaft","Diameters","UltimateTensile","EnduranceLimit","Ka","Kb","Kc","Kd","Ke","Kf"])
+
 %% Test
 %{
 L = 61
@@ -750,6 +773,57 @@ function T = TorquePlotter(Tlength, pinion, gear, moment)
         end
     end
 end
+
+%{
+Pd = Diametral Pitch (teeth/inch)
+N = Number of Teeth
+n = Angular Velocity (rpm)
+F = Face Width (inches)
+WtM = Tangetntial load (Newtons)
+m = gear Ratio
+phi = pressure angle (Rad)
+duty = number of revs
+%}
+function [OUTPUT] = enduranceLimit(shaftDiameter, Sut) 
+    %SI Units
+    
+    if Sut <= 1400 %Eq. 6-8
+        Se_ = 0.5*Sut;
+    else
+        Se_ = 700;
+    end
+    
+    %Ka - surface condition factor
+    a = 4.51; %Machined/CD, T6-2
+    b = -0.265; %T6-2
+    ka = a*Sut^b; %Eq. 6-19
+    
+    %Kb - size modification factor
+    d = shaftDiameter*10^3; %mm
+    if d <= 51 %Eq. 6-20
+        kb = (d/7.62)^-0.107
+    else
+        kb = 1.51*d^-0.157
+    end
+    
+    %Kc - load mofification factor
+    kc = 1% Eq. 6-26, Bending
+    
+    %Kd - temperature modification factor
+    Tf = 77; % room temp in degF, 25 degC
+    kd = 0.975 + Tf*0.432*10^-3 - Tf^2*0.115*10^-5 + Tf^3*0.104*10^-8 - Tf^4*0.595*10^-12; %Eq. 6-27
+    
+    %Ke - reliability factir
+    ke = 0.814; %T6-5, 99% reliability
+    
+    %Kf - misc effects modification factor
+    kf = 1;
+    
+    Se = ka*kb*kc*kd*ke*kf*Se_;
+    
+    OUTPUT = [Se, ka, kb, kc, kd, ke, kf];
+end
+
 
 %{
 Pd = Diametral Pitch (teeth/inch)
