@@ -51,7 +51,7 @@ Fr4 = 0.45;
 Fres4 = sqrt(Ft4^2+Fr4^2);
 
 Fe = Fres4/(Df+Dg)*Dg;
-Ff = Fres4*(Df/Dg);
+Ff = Fres4*(Df/(Df+Dg));
 
 %Bearing Calculations
 
@@ -66,3 +66,6 @@ C10d = Fd*(power(Xdd,(1/a)))
 
 Xde = (60*Life*InputS/Reduction1^2)/(10^6);
 C10e = Fe*(power(Xde,(1/a)))
+
+Xdf = (60*Life*InputS/Reduction1^2)/(10^6);
+C10f = Ff*(power(Xdf,(1/a)))
